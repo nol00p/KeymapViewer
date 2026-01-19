@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"keyviewer/internal/parser"
@@ -96,13 +97,8 @@ func HandleKeymaps(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(names)
 }
 
-// HandleKeymapByName handles GET requests for a specific keymap
+// HandleKeymapByName handles GET and PATCH requests for a specific keymap
 func HandleKeymapByName(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	name := strings.TrimPrefix(r.URL.Path, "/api/keymap/")
 	if name == "" {
 		http.Error(w, "Keymap name required", http.StatusBadRequest)
@@ -110,18 +106,84 @@ func HandleKeymapByName(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonPath := filepath.Join(keymapsDir, name+".json")
-	data, err := os.ReadFile(jsonPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.Error(w, "Keymap not found", http.StatusNotFound)
-		} else {
-			http.Error(w, "Failed to read keymap", http.StatusInternalServerError)
-		}
-		return
-	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(data)
+	switch r.Method {
+	case http.MethodGet:
+		data, err := os.ReadFile(jsonPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				http.Error(w, "Keymap not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Failed to read keymap", http.StatusInternalServerError)
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+
+	case http.MethodPatch:
+		// Update custom key name
+		var update struct {
+			LayerIndex int    `json:"layerIndex"`
+			KeyIndex   int    `json:"keyIndex"`
+			CustomName string `json:"customName"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Read existing keymap
+		data, err := os.ReadFile(jsonPath)
+		if err != nil {
+			http.Error(w, "Keymap not found", http.StatusNotFound)
+			return
+		}
+
+		var keymap parser.Keymap
+		if err := json.Unmarshal(data, &keymap); err != nil {
+			http.Error(w, "Failed to parse keymap", http.StatusInternalServerError)
+			return
+		}
+
+		// Validate layer index
+		if update.LayerIndex < 0 || update.LayerIndex >= len(keymap.Layers) {
+			http.Error(w, "Invalid layer index", http.StatusBadRequest)
+			return
+		}
+
+		// Initialize CustomNames map if nil
+		if keymap.Layers[update.LayerIndex].CustomNames == nil {
+			keymap.Layers[update.LayerIndex].CustomNames = make(map[string]string)
+		}
+
+		// Update or remove custom name
+		keyIdx := strconv.Itoa(update.KeyIndex)
+		if update.CustomName == "" {
+			delete(keymap.Layers[update.LayerIndex].CustomNames, keyIdx)
+		} else {
+			keymap.Layers[update.LayerIndex].CustomNames[keyIdx] = update.CustomName
+		}
+
+		// Save updated keymap
+		jsonData, err := json.MarshalIndent(keymap, "", "  ")
+		if err != nil {
+			http.Error(w, "Failed to serialize keymap", http.StatusInternalServerError)
+			return
+		}
+
+		if err := os.WriteFile(jsonPath, jsonData, 0644); err != nil {
+			http.Error(w, "Failed to save keymap", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonData)
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 // HandleLayout handles POST requests to upload a KLE layout

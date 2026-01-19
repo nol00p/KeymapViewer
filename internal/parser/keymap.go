@@ -11,8 +11,9 @@ type Keymap struct {
 }
 
 type Layer struct {
-	Name string   `json:"name"`
-	Keys []string `json:"keys"` // Flat array of key labels, indexed by position
+	Name        string            `json:"name"`
+	Keys        []string          `json:"keys"`        // Flat array of key labels, indexed by position
+	CustomNames map[string]string `json:"customNames"` // Custom names: key index (as string) -> custom label
 }
 
 // ParseKeymap parses a ZMK keymap file content and returns a Keymap structure
@@ -60,8 +61,9 @@ func ParseKeymap(content string, name string) (*Keymap, error) {
 		keysContent := innerContent[commaIdx+1:]
 
 		layer := Layer{
-			Name: formatLayerName(layerName),
-			Keys: parseKeysFlat(keysContent),
+			Name:        formatLayerName(layerName),
+			Keys:        parseKeysFlat(keysContent),
+			CustomNames: make(map[string]string),
 		}
 		keymap.Layers = append(keymap.Layers, layer)
 

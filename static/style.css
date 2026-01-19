@@ -203,3 +203,23 @@ select {
     background: #3a2a4a;
     color: #c8f;
 }
+
+.key.custom {
+    border-color: #6a8a6a;
+    border-width: 2px;
+}
+
+.key.custom::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 4px;
+    height: 4px;
+    background: #8c8;
+    border-radius: 50%;
+}
+
+.key-edit-input {
+    font-family: inherit;
+}

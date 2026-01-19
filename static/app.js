@@ -182,6 +182,110 @@ async function handleKeymapSelect(event) {
     }
 }
 
+// Get the display label for a key (custom name takes priority)
+function getKeyLabel(index) {
+    if (!currentKeymap) return '';
+
+    const layer = currentKeymap.layers[currentLayerIndex];
+    if (!layer) return '';
+
+    // Check for custom name first
+    const customNames = layer.customNames || {};
+    if (customNames[index.toString()]) {
+        return customNames[index.toString()];
+    }
+
+    // Fall back to parsed key
+    return layer.keys[index] || '';
+}
+
+// Check if a key has a custom name
+function hasCustomName(index) {
+    if (!currentKeymap) return false;
+    const layer = currentKeymap.layers[currentLayerIndex];
+    if (!layer || !layer.customNames) return false;
+    return !!layer.customNames[index.toString()];
+}
+
+// Save custom key name
+async function saveCustomName(keyIndex, customName) {
+    if (!currentKeymap) return;
+
+    try {
+        const response = await fetch(`/api/keymap/${currentKeymap.name}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                layerIndex: currentLayerIndex,
+                keyIndex: keyIndex,
+                customName: customName
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        currentKeymap = await response.json();
+        setStatus(`Key ${keyIndex} renamed to "${customName || '(cleared)'}"`);
+        renderKeyboard();
+    } catch (error) {
+        setStatus('Failed to save: ' + error.message, true);
+        console.error('Failed to save custom name:', error);
+    }
+}
+
+// Handle key double-click for editing
+function handleKeyEdit(keyEl, keyIndex) {
+    const currentLabel = getKeyLabel(keyIndex);
+    const originalKey = currentKeymap?.layers[currentLayerIndex]?.keys[keyIndex] || '';
+
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'key-edit-input';
+    input.value = currentLabel;
+    input.placeholder = originalKey || 'Enter name';
+
+    // Style the input to fit the key
+    input.style.width = '100%';
+    input.style.height = '100%';
+    input.style.border = 'none';
+    input.style.background = 'transparent';
+    input.style.color = 'inherit';
+    input.style.textAlign = 'center';
+    input.style.fontSize = 'inherit';
+    input.style.outline = '2px solid #6a6aaa';
+
+    // Replace content with input
+    keyEl.textContent = '';
+    keyEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    // Handle save
+    const save = () => {
+        const newName = input.value.trim();
+        // If empty or same as original parsed key, clear custom name
+        if (newName === '' || newName === originalKey) {
+            saveCustomName(keyIndex, '');
+        } else {
+            saveCustomName(keyIndex, newName);
+        }
+    };
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            renderKeyboard(); // Cancel edit
+        }
+    });
+}
+
 // Rendering
 function renderKeyboard() {
     if (!currentLayout) {
@@ -213,17 +317,15 @@ function renderKeyboard() {
     keyboard.style.width = width + 'px';
     keyboard.style.height = height + 'px';
 
-    // Get current layer keys
-    const layerKeys = currentKeymap?.layers[currentLayerIndex]?.keys || [];
-
     // Render each key
     currentLayout.keys.forEach((physKey, index) => {
         const keyEl = document.createElement('div');
-        const label = layerKeys[index] || '';
+        const label = getKeyLabel(index);
+        const isCustom = hasCustomName(index);
 
-        keyEl.className = 'key ' + getKeyClass(label);
+        keyEl.className = 'key ' + getKeyClass(label) + (isCustom ? ' custom' : '');
         keyEl.textContent = label;
-        keyEl.title = `Key ${index}: ${label || 'empty'}`;
+        keyEl.title = `Key ${index}: ${label || 'empty'}${isCustom ? ' (custom)' : ''}\nDouble-click to edit`;
 
         // Position and size
         const x = (physKey.x - minX) * KEY_SIZE;
@@ -242,6 +344,15 @@ function renderKeyboard() {
             const ry = (physKey.ry - minY) * KEY_SIZE;
             keyEl.style.transformOrigin = `${rx - x}px ${ry - y}px`;
             keyEl.style.transform = `rotate(${physKey.r}deg)`;
+        }
+
+        // Double-click to edit (only if keymap is loaded)
+        if (currentKeymap) {
+            keyEl.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                handleKeyEdit(keyEl, index);
+            });
+            keyEl.style.cursor = 'pointer';
         }
 
         keyboard.appendChild(keyEl);
