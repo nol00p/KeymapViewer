@@ -3,24 +3,42 @@
 let currentLayout = null;
 let currentKeymap = null;
 let currentLayerIndex = 0;
+let selectedKeyIndex = null;
 
 const KEY_SIZE = 54; // Base key size in pixels
 const KEY_GAP = 4;   // Gap between keys
 
-// DOM elements
-const layoutFile = document.getElementById('layout-file');
-const layoutSelect = document.getElementById('layout-select');
-const keymapFile = document.getElementById('keymap-file');
-const keymapSelect = document.getElementById('keymap-select');
-const layerTabs = document.getElementById('layer-tabs');
-const keyboardContainer = document.getElementById('keyboard-container');
-const statusMessage = document.getElementById('status-message');
+// DOM elements (assigned in init)
+let layoutFile, layoutSelect, keymapFile, keymapSelect;
+let jsonOpenFile, jsonSaveBtn;
+let layerTabs, keyboardContainer, statusMessage;
+let keyEditor, keyIndexDisplay, keyOriginalDisplay, keyFriendlyInput;
+let keyFriendlySaveBtn, keyFriendlyClearBtn;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Get DOM elements
+    layoutFile = document.getElementById('layout-file');
+    layoutSelect = document.getElementById('layout-select');
+    keymapFile = document.getElementById('keymap-file');
+    keymapSelect = document.getElementById('keymap-select');
+    jsonOpenFile = document.getElementById('json-open-file');
+    jsonSaveBtn = document.getElementById('json-save-btn');
+    layerTabs = document.getElementById('layer-tabs');
+    keyboardContainer = document.getElementById('keyboard-container');
+    statusMessage = document.getElementById('status-message');
+    keyEditor = document.getElementById('key-editor');
+    keyIndexDisplay = document.getElementById('key-index');
+    keyOriginalDisplay = document.getElementById('key-original');
+    keyFriendlyInput = document.getElementById('key-friendly');
+    keyFriendlySaveBtn = document.getElementById('key-friendly-save');
+    keyFriendlyClearBtn = document.getElementById('key-friendly-clear');
+
     loadLayoutList();
     loadKeymapList();
     setupEventListeners();
+    updateSaveButtonState();
+    updateKeyEditor();
 });
 
 function setupEventListeners() {
@@ -28,6 +46,16 @@ function setupEventListeners() {
     layoutSelect.addEventListener('change', handleLayoutSelect);
     keymapFile.addEventListener('change', handleKeymapUpload);
     keymapSelect.addEventListener('change', handleKeymapSelect);
+    jsonOpenFile.addEventListener('change', handleJsonOpen);
+    jsonSaveBtn.addEventListener('click', handleJsonSave);
+    keyFriendlySaveBtn.addEventListener('click', handleFriendlyNameSave);
+    keyFriendlyClearBtn.addEventListener('click', handleFriendlyNameClear);
+    keyFriendlyInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleFriendlyNameSave();
+        }
+    });
 }
 
 function setStatus(msg, isError = false) {
@@ -288,6 +316,8 @@ function handleKeyEdit(keyEl, keyIndex) {
 
 // Rendering
 function renderKeyboard() {
+    updateSaveButtonState();
+
     if (!currentLayout) {
         keyboardContainer.innerHTML = '<p class="placeholder">Upload a KLE layout JSON to visualize the keyboard</p>';
         layerTabs.innerHTML = '';
@@ -321,11 +351,15 @@ function renderKeyboard() {
     currentLayout.keys.forEach((physKey, index) => {
         const keyEl = document.createElement('div');
         const label = getKeyLabel(index);
+        const originalKey = getOriginalKey(index);
         const isCustom = hasCustomName(index);
+        const isSelected = index === selectedKeyIndex;
 
-        keyEl.className = 'key ' + getKeyClass(label) + (isCustom ? ' custom' : '');
+        // Use original key for class (so custom names keep the correct color)
+        keyEl.className = 'key ' + getKeyClass(originalKey) + (isCustom ? ' custom' : '') + (isSelected ? ' selected' : '');
         keyEl.textContent = label;
-        keyEl.title = `Key ${index}: ${label || 'empty'}${isCustom ? ' (custom)' : ''}\nDouble-click to edit`;
+        keyEl.dataset.index = index;
+        keyEl.title = `Key ${index}: ${label || 'empty'}${isCustom ? ' (custom)' : ''}\nClick to select, double-click to edit inline`;
 
         // Position and size
         const x = (physKey.x - minX) * KEY_SIZE;
@@ -346,8 +380,12 @@ function renderKeyboard() {
             keyEl.style.transform = `rotate(${physKey.r}deg)`;
         }
 
-        // Double-click to edit (only if keymap is loaded)
+        // Click to select, double-click to edit (only if keymap is loaded)
         if (currentKeymap) {
+            keyEl.addEventListener('click', (e) => {
+                e.preventDefault();
+                selectKey(index);
+            });
             keyEl.addEventListener('dblclick', (e) => {
                 e.preventDefault();
                 handleKeyEdit(keyEl, index);
@@ -360,6 +398,7 @@ function renderKeyboard() {
 
     keyboardContainer.innerHTML = '';
     keyboardContainer.appendChild(keyboard);
+    updateKeyEditor();
 }
 
 function renderLayerTabs() {
@@ -377,12 +416,146 @@ function renderLayerTabs() {
     });
 }
 
+// Get the original (parsed) key for an index
+function getOriginalKey(index) {
+    if (!currentKeymap) return '';
+    const layer = currentKeymap.layers[currentLayerIndex];
+    return layer?.keys[index] || '';
+}
+
 function getKeyClass(key) {
     if (!key || key === '') return 'empty';
     if (key === '▽') return 'trans';
     if (key.startsWith('[') && key.endsWith(']')) return 'layer';
-    if (key.includes('/')) return 'layer';
+    // Layer-tap pattern: "KEY/L" - must have content on both sides of /
+    if (key.includes('/') && key.length > 2 && !key.startsWith('/') && !key.endsWith('/')) return 'layer';
     if (['CTRL', 'ALT', 'GUI', 'SHFT', 'SHIFT'].some(m => key.includes(m))) return 'mod';
     if (['BOOT', 'BT', 'BL', 'LDR', 'CAPS', 'STUDIO'].some(s => key.startsWith(s))) return 'special';
     return '';
+}
+
+// Update save button state
+function updateSaveButtonState() {
+    jsonSaveBtn.disabled = !currentKeymap;
+}
+
+// Update key editor panel
+function updateKeyEditor() {
+    if (selectedKeyIndex === null || !currentKeymap) {
+        keyEditor.classList.add('hidden');
+        return;
+    }
+
+    keyEditor.classList.remove('hidden');
+
+    const layer = currentKeymap.layers[currentLayerIndex];
+    const originalKey = layer?.keys[selectedKeyIndex] || '';
+    const customNames = layer?.customNames || {};
+    const friendlyName = customNames[selectedKeyIndex.toString()] || '';
+
+    keyIndexDisplay.textContent = selectedKeyIndex;
+    keyOriginalDisplay.textContent = originalKey || '(empty)';
+    keyFriendlyInput.value = friendlyName;
+    keyFriendlyInput.placeholder = originalKey || 'Enter friendly name';
+}
+
+// Handle friendly name save from editor
+function handleFriendlyNameSave() {
+    if (selectedKeyIndex === null || !currentKeymap) return;
+
+    const newName = keyFriendlyInput.value.trim();
+    const layer = currentKeymap.layers[currentLayerIndex];
+    const originalKey = layer?.keys[selectedKeyIndex] || '';
+
+    // If empty or same as original, clear it
+    if (newName === '' || newName === originalKey) {
+        saveCustomName(selectedKeyIndex, '');
+    } else {
+        saveCustomName(selectedKeyIndex, newName);
+    }
+}
+
+// Handle friendly name clear
+function handleFriendlyNameClear() {
+    if (selectedKeyIndex === null || !currentKeymap) return;
+    keyFriendlyInput.value = '';
+    saveCustomName(selectedKeyIndex, '');
+}
+
+// Select a key
+function selectKey(index) {
+    selectedKeyIndex = index;
+    updateKeyEditor();
+    // Update visual selection
+    document.querySelectorAll('.key.selected').forEach(el => el.classList.remove('selected'));
+    const keyEl = document.querySelector(`.key[data-index="${index}"]`);
+    if (keyEl) keyEl.classList.add('selected');
+}
+
+// Save keymap as JSON file
+function handleJsonSave() {
+    if (!currentKeymap) {
+        setStatus('No keymap to save', true);
+        return;
+    }
+
+    const jsonStr = JSON.stringify(currentKeymap, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentKeymap.name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setStatus(`Saved keymap as "${currentKeymap.name}.json"`);
+}
+
+// Open keymap JSON file
+async function handleJsonOpen(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setStatus('Loading JSON keymap...');
+
+    try {
+        const text = await file.text();
+        const keymap = JSON.parse(text);
+
+        // Validate keymap structure
+        if (!keymap.name || !keymap.layers || !Array.isArray(keymap.layers)) {
+            throw new Error('Invalid keymap JSON structure');
+        }
+
+        // Upload to server to persist
+        const response = await fetch('/api/keymap/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: text
+        });
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        currentKeymap = await response.json();
+        currentLayerIndex = 0;
+
+        const keyCount = currentKeymap.layers[0]?.keys?.length || 0;
+        setStatus(`Keymap "${currentKeymap.name}" loaded (${currentKeymap.layers.length} layers, ${keyCount} keys)`);
+
+        await loadKeymapList();
+        keymapSelect.value = currentKeymap.name;
+
+        renderKeyboard();
+    } catch (error) {
+        setStatus('JSON error: ' + error.message, true);
+        console.error('JSON open failed:', error);
+    }
+
+    // Reset file input so same file can be selected again
+    event.target.value = '';
 }

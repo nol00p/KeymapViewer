@@ -35,6 +35,15 @@
                     </select>
                 </div>
             </div>
+
+            <div class="control-group">
+                <label>Keymap JSON</label>
+                <div class="input-row">
+                    <label for="json-open-file" class="upload-btn">Open</label>
+                    <input type="file" id="json-open-file" accept=".json" hidden>
+                    <button id="json-save-btn" class="action-btn">Save</button>
+                </div>
+            </div>
         </section>
 
         <section class="status-bar">
@@ -46,6 +55,26 @@
 
         <section class="keyboard-container" id="keyboard-container">
             <p class="placeholder">Upload a KLE layout and keymap to visualize</p>
+        </section>
+
+        <section class="key-editor hidden" id="key-editor">
+            <h3>Key Editor</h3>
+            <div class="editor-row">
+                <label>Key Index:</label>
+                <span id="key-index">-</span>
+            </div>
+            <div class="editor-row">
+                <label>Original:</label>
+                <span id="key-original">-</span>
+            </div>
+            <div class="editor-row">
+                <label>Friendly Name:</label>
+                <input type="text" id="key-friendly" placeholder="Enter friendly name">
+            </div>
+            <div class="editor-actions">
+                <button id="key-friendly-save" class="action-btn">Save</button>
+                <button id="key-friendly-clear" class="action-btn secondary">Clear</button>
+            </div>
         </section>
     </div>
 

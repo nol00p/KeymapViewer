@@ -97,6 +97,55 @@ func HandleKeymaps(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(names)
 }
 
+// HandleKeymapImport handles POST requests to import a keymap JSON directly
+func HandleKeymapImport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate JSON structure
+	var keymap parser.Keymap
+	if err := json.Unmarshal(body, &keymap); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if keymap.Name == "" {
+		http.Error(w, "Keymap name is required", http.StatusBadRequest)
+		return
+	}
+	if len(keymap.Layers) == 0 {
+		http.Error(w, "Keymap must have at least one layer", http.StatusBadRequest)
+		return
+	}
+
+	// Re-marshal with proper formatting
+	jsonData, err := json.MarshalIndent(keymap, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to serialize keymap", http.StatusInternalServerError)
+		return
+	}
+
+	// Save to file
+	jsonPath := filepath.Join(keymapsDir, keymap.Name+".json")
+	err = os.WriteFile(jsonPath, jsonData, 0644)
+	if err != nil {
+		http.Error(w, "Failed to save keymap", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
+}
+
 // HandleKeymapByName handles GET and PATCH requests for a specific keymap
 func HandleKeymapByName(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/api/keymap/")

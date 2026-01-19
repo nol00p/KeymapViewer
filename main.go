@@ -15,6 +15,7 @@ func main() {
 	// API routes - Keymaps
 	http.HandleFunc("/api/keymap", api.HandleKeymap)
 	http.HandleFunc("/api/keymaps", api.HandleKeymaps)
+	http.HandleFunc("/api/keymap/import", api.HandleKeymapImport)
 	http.HandleFunc("/api/keymap/", api.HandleKeymapByName)
 
 	// API routes - Layouts

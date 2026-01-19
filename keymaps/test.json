@@ -94,7 +94,15 @@
         "",
         ""
       ],
-      "customNames": {}
+      "customNames": {
+        "1": "Desk 1",
+        "2": "Desk 2",
+        "3": "Desk 3",
+        "4": "Desk 4",
+        "42": "Caps   Word",
+        "54": "Leader",
+        "8": "Files"
+      }
     },
     {
       "name": "Lower",
@@ -189,7 +197,9 @@
         "▽",
         "▽"
       ],
-      "customNames": {}
+      "customNames": {
+        "9": "Ghostty"
+      }
     },
     {
       "name": "Raise",
@@ -284,7 +294,12 @@
         "▽",
         "▽"
       ],
-      "customNames": {}
+      "customNames": {
+        "1": "Win to D1",
+        "2": "Win to D2",
+        "3": "Win to D3",
+        "4": "Win to D3"
+      }
     },
     {
       "name": "Fn",
