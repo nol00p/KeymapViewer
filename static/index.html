@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeyViewer - ZMK Keymap Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>KeyViewer</h1>
+            <p class="subtitle">ZMK Keymap Visualizer</p>
+        </header>
+
+        <section class="controls">
+            <div class="control-group">
+                <label>Layout (KLE JSON)</label>
+                <div class="input-row">
+                    <label for="layout-file" class="upload-btn">Upload</label>
+                    <input type="file" id="layout-file" accept=".json" hidden>
+                    <select id="layout-select">
+                        <option value="">-- Select layout --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Keymap (.keymap)</label>
+                <div class="input-row">
+                    <label for="keymap-file" class="upload-btn">Upload</label>
+                    <input type="file" id="keymap-file" accept=".keymap" hidden>
+                    <select id="keymap-select">
+                        <option value="">-- Select keymap --</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="status-bar">
+            <span id="status-message"></span>
+        </section>
+
+        <section class="layer-tabs" id="layer-tabs">
+        </section>
+
+        <section class="keyboard-container" id="keyboard-container">
+            <p class="placeholder">Upload a KLE layout and keymap to visualize</p>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

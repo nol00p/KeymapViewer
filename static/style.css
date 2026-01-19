@@ -1,0 +1,205 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+header h1 {
+    font-size: 2rem;
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    color: #fff;
+}
+
+.subtitle {
+    color: #888;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 3rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.control-group > label {
+    color: #888;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.upload-btn {
+    background: #4a4a6a;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.upload-btn:hover {
+    background: #5a5a7a;
+}
+
+select {
+    background: #2a2a4a;
+    color: #fff;
+    border: 1px solid #4a4a6a;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    min-width: 180px;
+}
+
+.status-bar {
+    text-align: center;
+    margin-bottom: 1rem;
+    min-height: 1.5rem;
+}
+
+#status-message {
+    color: #8a8;
+    font-size: 0.85rem;
+}
+
+#status-message.error {
+    color: #a88;
+}
+
+.layer-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.layer-tab {
+    background: #2a2a4a;
+    color: #888;
+    border: 1px solid #3a3a5a;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+}
+
+.layer-tab:hover {
+    background: #3a3a5a;
+    color: #fff;
+}
+
+.layer-tab.active {
+    background: #5a5a8a;
+    color: #fff;
+    border-color: #6a6a9a;
+}
+
+.keyboard-container {
+    background: #16162a;
+    border-radius: 12px;
+    padding: 2rem;
+    overflow-x: auto;
+    min-height: 400px;
+}
+
+.placeholder {
+    text-align: center;
+    color: #555;
+    padding: 4rem;
+}
+
+.keyboard {
+    position: relative;
+    margin: 0 auto;
+}
+
+.key {
+    position: absolute;
+    background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: #ccc;
+    padding: 2px;
+    text-align: center;
+    word-break: break-all;
+    transition: all 0.15s;
+    overflow: hidden;
+}
+
+.key:hover {
+    background: #3a3a5a;
+    border-color: #5a5a8a;
+    color: #fff;
+    z-index: 10;
+}
+
+.key.empty {
+    background: transparent;
+    border-color: #2a2a3a;
+    color: #444;
+}
+
+.key.trans {
+    background: #1a1a2a;
+    border-style: dashed;
+    color: #555;
+}
+
+.key.special {
+    background: #3a3a5a;
+    color: #aaf;
+}
+
+.key.mod {
+    background: #2a3a4a;
+    color: #8cf;
+}
+
+.key.layer {
+    background: #3a2a4a;
+    color: #c8f;
+}
