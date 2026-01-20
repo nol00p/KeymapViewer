@@ -200,9 +200,25 @@ async function handleKeymapSelect(event) {
         const response = await fetch(`/api/keymap/${name}`);
         if (!response.ok) throw new Error('Failed to load keymap');
 
-        currentKeymap = await response.json();
+        const data = await response.json();
+
+        // Extract embedded layout if present
+        if (data.layout && data.layout.keys && Array.isArray(data.layout.keys)) {
+            currentLayout = data.layout;
+            if (data.layout.name) {
+                layoutSelect.value = data.layout.name;
+            }
+        }
+
+        // Set keymap without layout property
+        currentKeymap = {
+            name: data.name,
+            layers: data.layers
+        };
         currentLayerIndex = 0;
-        setStatus(`Keymap "${name}" loaded`);
+
+        const layoutInfo = currentLayout ? `, layout: ${currentLayout.keys.length} keys` : '';
+        setStatus(`Keymap "${name}" loaded${layoutInfo}`);
         renderKeyboard();
     } catch (error) {
         setStatus('Failed to load keymap', true);
@@ -492,26 +508,50 @@ function selectKey(index) {
     if (keyEl) keyEl.classList.add('selected');
 }
 
-// Save keymap as JSON file
-function handleJsonSave() {
+// Save keymap as JSON file (includes layout for self-contained file)
+async function handleJsonSave() {
     if (!currentKeymap) {
         setStatus('No keymap to save', true);
         return;
     }
 
-    const jsonStr = JSON.stringify(currentKeymap, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    // Create a self-contained keymap with embedded layout
+    const keymapToSave = {
+        ...currentKeymap,
+        layout: currentLayout || undefined
+    };
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentKeymap.name}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const jsonStr = JSON.stringify(keymapToSave, null, 2);
 
-    setStatus(`Saved keymap as "${currentKeymap.name}.json"`);
+    // Save to server first
+    try {
+        const response = await fetch('/api/keymap/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: jsonStr
+        });
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        // Also download a copy
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentKeymap.name}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setStatus(`Saved keymap "${currentKeymap.name}" (with layout embedded)`);
+    } catch (error) {
+        setStatus('Save error: ' + error.message, true);
+        console.error('Save failed:', error);
+    }
 }
 
 // Open keymap JSON file
@@ -530,6 +570,9 @@ async function handleJsonOpen(event) {
             throw new Error('Invalid keymap JSON structure');
         }
 
+        // Extract embedded layout if present (for self-contained keymap files)
+        const embeddedLayout = keymap.layout || null;
+
         // Upload to server to persist
         const response = await fetch('/api/keymap/import', {
             method: 'POST',
@@ -541,11 +584,27 @@ async function handleJsonOpen(event) {
             throw new Error(await response.text());
         }
 
-        currentKeymap = await response.json();
+        const savedKeymap = await response.json();
+
+        // Set currentKeymap (without the layout property to keep it clean)
+        currentKeymap = {
+            name: savedKeymap.name,
+            layers: savedKeymap.layers
+        };
         currentLayerIndex = 0;
 
+        // Set currentLayout from embedded layout if present
+        if (embeddedLayout && embeddedLayout.keys && Array.isArray(embeddedLayout.keys)) {
+            currentLayout = embeddedLayout;
+            // Update layout selector if the layout has a name
+            if (embeddedLayout.name) {
+                layoutSelect.value = embeddedLayout.name;
+            }
+        }
+
         const keyCount = currentKeymap.layers[0]?.keys?.length || 0;
-        setStatus(`Keymap "${currentKeymap.name}" loaded (${currentKeymap.layers.length} layers, ${keyCount} keys)`);
+        const layoutInfo = currentLayout ? `, layout: ${currentLayout.keys.length} keys` : '';
+        setStatus(`Keymap "${currentKeymap.name}" loaded (${currentKeymap.layers.length} layers, ${keyCount} keys${layoutInfo})`);
 
         await loadKeymapList();
         keymapSelect.value = currentKeymap.name;

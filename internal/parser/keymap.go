@@ -8,6 +8,7 @@ import (
 type Keymap struct {
 	Name   string  `json:"name"`
 	Layers []Layer `json:"layers"`
+	Layout *Layout `json:"layout,omitempty"` // Physical layout for self-contained keymap files
 }
 
 type Layer struct {
